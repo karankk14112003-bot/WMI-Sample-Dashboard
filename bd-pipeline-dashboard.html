@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corporate BD Pipeline Dashboard</title>
+<style>
+/* ============================================================
+   THEME TOKENS
+   Light palette on bare :root; dark redefined under both the
+   OS media query and an explicit [data-theme="dark"] stamp.
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --surface-0:      #f4f3ef;
+  --surface-1:      #fcfcfb;
+  --surface-2:      #eeece6;
+  --border:         #dedbd2;
+  --border-strong:  #c8c4b8;
+
+  --text-primary:   #14140f;
+  --text-secondary: #52514e;
+  --text-muted:     #7b796f;
+
+  --brand:          #1F3D2F;
+  --accent:         #C4703F;
+
+  /* categorical — validated pair (adjacent CVD ΔE 24.7 / normal 33.6) */
+  --series-1:       #2a78d6;
+  --series-2:       #eb6834;
+
+  /* single sequential hue for magnitude bars */
+  --bar:            #2a78d6;
+  --bar-soft:       #cde2fb;
+
+  /* status — reserved, always shipped with icon + label */
+  --good:           #0ca30c;
+  --warning:        #fab219;
+  --critical:       #d03b3b;
+
+  --grid:           #e6e4dc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0:      #121211;
+    --surface-1:      #1a1a19;
+    --surface-2:      #232320;
+    --border:         #33332e;
+    --border-strong:  #4a4a43;
+
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #93918a;
+
+    --brand:          #BFD4C3;
+    --accent:         #d98a5c;
+
+    --series-1:       #3987e5;
+    --series-2:       #d95926;
+
+    --bar:            #3987e5;
+    --bar-soft:       #184f95;
+
+    --good:           #0ca30c;
+    --warning:        #fab219;
+    --critical:       #d03b3b;
+
+    --grid:           #2c2c28;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0:      #121211;
+  --surface-1:      #1a1a19;
+  --surface-2:      #232320;
+  --border:         #33332e;
+  --border-strong:  #4a4a43;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #93918a;
+  --brand:          #BFD4C3;
+  --accent:         #d98a5c;
+  --series-1:       #3987e5;
+  --series-2:       #d95926;
+  --bar:            #3987e5;
+  --bar-soft:       #184f95;
+  --good:           #0ca30c;
+  --warning:        #fab219;
+  --critical:       #d03b3b;
+  --grid:           #2c2c28;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 32px 24px 64px; }
+
+/* ---------- header ---------- */
+.eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--accent); margin: 0 0 8px;
+}
+h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; font-weight: 700; letter-spacing: -.02em; }
+.sub { color: var(--text-secondary); margin: 0 0 20px; max-width: 70ch; }
+
+.notice {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--surface-2); border-left: 3px solid var(--warning);
+  border-radius: 4px; padding: 12px 16px; margin: 0 0 24px;
+  font-size: 13.5px; color: var(--text-secondary);
+}
+.notice strong { color: var(--text-primary); }
+
+/* ---------- filters ---------- */
+.filters {
+  display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: flex-end;
+  padding: 14px 16px; background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 8px; margin-bottom: 22px;
+}
+.fgroup { display: flex; flex-direction: column; gap: 5px; }
+.fgroup label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+select, button.reset {
+  font: inherit; font-size: 13.5px;
+  background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  padding: 7px 10px; min-width: 168px; cursor: pointer;
+}
+button.reset { min-width: 0; padding: 7px 14px; }
+button.reset:hover, select:hover { border-color: var(--accent); }
+.fspacer { flex: 1 1 auto; }
+
+/* ---------- KPI tiles ---------- */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.kpi {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px 18px;
+}
+.kpi .k-label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+}
+.kpi .k-value { font-size: 32px; font-weight: 700; letter-spacing: -.02em; line-height: 1.05; }
+.kpi .k-note { font-size: 12.5px; color: var(--text-secondary); margin-top: 6px; }
+
+/* ---------- panels ---------- */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+.panel {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 20px; margin-bottom: 18px;
+}
+.panel h2 { font-size: 16px; margin: 0 0 4px; font-weight: 700; }
+.panel .p-sub { font-size: 13px; color: var(--text-secondary); margin: 0 0 16px; }
+
+.legend { display: flex; gap: 18px; margin: 0 0 12px; flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-secondary); }
+.swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+.chart-scroll { overflow-x: auto; }
+svg { display: block; max-width: 100%; }
+
+/* ---------- tables ---------- */
+.tbl-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 640px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+th {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-muted);
+  border-bottom: 1px solid var(--border-strong); white-space: nowrap;
+}
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:hover { background: var(--surface-2); }
+
+.minibar { display: flex; align-items: center; gap: 9px; justify-content: flex-end; }
+.minibar .track { width: 66px; height: 7px; background: var(--bar-soft); border-radius: 4px; overflow: hidden; flex: none; }
+.minibar .fill { height: 100%; background: var(--bar); border-radius: 4px; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+  background: var(--surface-2); color: var(--text-secondary); white-space: nowrap;
+}
+.pill.good     { color: var(--good); }
+.pill.warning  { color: #8a6000; }
+.pill.critical { color: var(--critical); }
+:root[data-theme="dark"] .pill.warning { color: var(--warning); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill.warning { color: var(--warning); } }
+
+.stage-tag { font-weight: 600; }
+
+/* ---------- tooltip ---------- */
+#tip {
+  position: fixed; pointer-events: none; opacity: 0; transition: opacity .1s;
+  background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  padding: 9px 12px; font-size: 12.5px; line-height: 1.45;
+  box-shadow: 0 6px 20px rgba(0,0,0,.16); z-index: 50; white-space: nowrap;
+}
+#tip .t-head { font-weight: 700; margin-bottom: 4px; }
+#tip .t-row { display: flex; align-items: center; gap: 7px; }
+
+footer { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted); }
+.theme-toggle {
+  font: inherit; font-size: 12.5px; background: none; border: 1px solid var(--border-strong);
+  color: var(--text-secondary); border-radius: 6px; padding: 5px 11px; cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">Relocate to Ireland &middot; Business Development</p>
+  <h1>Corporate Pipeline Dashboard</h1>
+  <p class="sub">Weekly tracking of the corporate acquisition pipeline — funnel health, outreach activity, and channel-level conversion to decide where effort is concentrated.</p>
+
+  <div class="notice">
+    <span aria-hidden="true">&#9888;</span>
+    <div><strong>Sample data.</strong> Every record below is illustrative, created to demonstrate the reporting structure. Replace the <code>PIPELINE</code> and <code>WEEKLY</code> arrays in the script block at the bottom of this file with real records — every figure on this page recalculates automatically.</div>
+  </div>
+
+  <div class="filters">
+    <div class="fgroup">
+      <label for="f-channel">Channel</label>
+      <select id="f-channel"><option value="all">All channels</option></select>
+    </div>
+    <div class="fgroup">
+      <label for="f-tier">Account tier</label>
+      <select id="f-tier"><option value="all">All tiers</option></select>
+    </div>
+    <div class="fgroup">
+      <label for="f-sector">Sector</label>
+      <select id="f-sector"><option value="all">All sectors</option></select>
+    </div>
+    <div class="fspacer"></div>
+    <button class="reset" id="f-reset">Reset</button>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>Pipeline funnel</h2>
+      <p class="p-sub">Accounts at each stage, with stage-to-stage conversion.</p>
+      <div class="chart-scroll"><svg id="funnel" role="img" aria-label="Pipeline funnel by stage"></svg></div>
+    </div>
+
+    <div class="panel">
+      <h2>Outreach activity &amp; replies</h2>
+      <p class="p-sub">Weekly outbound volume against replies received.</p>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--series-1)"></i>Outreach sent</span>
+        <span><i class="swatch" style="background:var(--series-2)"></i>Replies received</span>
+      </div>
+      <div class="chart-scroll"><svg id="trend" role="img" aria-label="Weekly outreach and replies"></svg></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Channel scorecard</h2>
+    <p class="p-sub">The decision layer — which channel earns more capacity, and which needs diagnosis before it earns any more.</p>
+    <div class="tbl-scroll"><table id="channels">
+      <thead><tr>
+        <th>Channel</th>
+        <th class="num">Contacted</th>
+        <th class="num">Engaged</th>
+        <th class="num">Reply rate</th>
+        <th class="num">Qualified</th>
+        <th class="num">Won</th>
+        <th class="num">Win rate</th>
+        <th class="num">Avg cycle</th>
+        <th class="num">Pipeline value</th>
+        <th>Action</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <div class="panel">
+    <h2>Account detail</h2>
+    <p class="p-sub" id="acct-sub">All tracked accounts.</p>
+    <div class="tbl-scroll"><table id="accounts">
+      <thead><tr>
+        <th>Account</th>
+        <th>Sector</th>
+        <th>Tier</th>
+        <th>Channel</th>
+        <th>Stage</th>
+        <th class="num">Est. value</th>
+        <th class="num">Days open</th>
+        <th>Last activity</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <footer>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <span>Corporate BD Pipeline &middot; prepared by Karan Krishnan &middot; reporting date <span id="asof"></span></span>
+      <button class="theme-toggle" id="theme">Switch theme</button>
+    </div>
+  </footer>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+/* ============================================================================
+   1. DATA  —  replace these two arrays with real records.
+   ----------------------------------------------------------------------------
+   stage:   Target | Contacted | Engaged | Discovery | Proposal | Won | Lost
+   lostFrom: required on Lost rows — the stage the account reached before it
+             was lost, so funnel and channel conversion stay historically true
+   channel: Direct Outbound | Partnerships | Ecosystem & Referral | Inbound
+   tier:    A | B | C           value: estimated annual contract value (EUR)
+   ========================================================================== */
+
+const AS_OF = '2026-08-20';           // reporting date — drives "days open"
+
+const PIPELINE = [
+  { account:'Northgate Biologics',   sector:'Pharmaceutical',        tier:'A', channel:'Direct Outbound',      stage:'Won',       value:96000, firstTouch:'2026-03-02', lastActivity:'2026-07-28' },
+  { account:'Keystone Payments',     sector:'Financial Services',    tier:'A', channel:'Direct Outbound',      stage:'Won',       value:72000, firstTouch:'2026-03-16', lastActivity:'2026-08-04' },
+  { account:'Aurelia Therapeutics',  sector:'Pharmaceutical',        tier:'A', channel:'Partnerships',         stage:'Won',       value:64000, firstTouch:'2026-04-06', lastActivity:'2026-08-11' },
+  { account:'Vantage Cloud',         sector:'Technology',            tier:'A', channel:'Direct Outbound',      stage:'Proposal',  value:88000, firstTouch:'2026-04-13', lastActivity:'2026-08-15' },
+  { account:'Ardagh Legal Group',    sector:'Professional Services', tier:'B', channel:'Ecosystem & Referral', stage:'Proposal',  value:41000, firstTouch:'2026-05-04', lastActivity:'2026-08-12' },
+  { account:'Melrose Semiconductor', sector:'Technology',            tier:'A', channel:'Partnerships',         stage:'Proposal',  value:76000, firstTouch:'2026-04-27', lastActivity:'2026-08-18' },
+  { account:'Cairn Data Systems',    sector:'Technology',            tier:'B', channel:'Direct Outbound',      stage:'Discovery', value:52000, firstTouch:'2026-05-18', lastActivity:'2026-08-14' },
+  { account:'Halloran Pharma',       sector:'Pharmaceutical',        tier:'A', channel:'Direct Outbound',      stage:'Discovery', value:81000, firstTouch:'2026-05-25', lastActivity:'2026-08-19' },
+  { account:'Blackrock Advisory',    sector:'Professional Services', tier:'B', channel:'Ecosystem & Referral', stage:'Discovery', value:38000, firstTouch:'2026-06-01', lastActivity:'2026-08-13' },
+  { account:'Sionna Fintech',        sector:'Financial Services',    tier:'B', channel:'Partnerships',         stage:'Discovery', value:44000, firstTouch:'2026-06-08', lastActivity:'2026-08-17' },
+  { account:'Trellis Software',      sector:'Technology',            tier:'B', channel:'Inbound',              stage:'Discovery', value:36000, firstTouch:'2026-06-15', lastActivity:'2026-08-16' },
+  { account:'Corrib Life Sciences',  sector:'Pharmaceutical',        tier:'A', channel:'Direct Outbound',      stage:'Engaged',   value:69000, firstTouch:'2026-06-22', lastActivity:'2026-08-18' },
+  { account:'Palisade Capital',      sector:'Financial Services',    tier:'A', channel:'Direct Outbound',      stage:'Engaged',   value:58000, firstTouch:'2026-06-29', lastActivity:'2026-08-15' },
+  { account:'Ovoca Consulting',      sector:'Professional Services', tier:'C', channel:'Ecosystem & Referral', stage:'Engaged',   value:22000, firstTouch:'2026-07-06', lastActivity:'2026-08-11' },
+  { account:'Dunmore Robotics',      sector:'Technology',            tier:'B', channel:'Partnerships',         stage:'Engaged',   value:47000, firstTouch:'2026-07-06', lastActivity:'2026-08-19' },
+  { account:'Lir Analytics',         sector:'Technology',            tier:'C', channel:'Inbound',              stage:'Engaged',   value:19000, firstTouch:'2026-07-13', lastActivity:'2026-08-12' },
+  { account:'Shannon Medical',       sector:'Pharmaceutical',        tier:'B', channel:'Direct Outbound',      stage:'Engaged',   value:53000, firstTouch:'2026-07-13', lastActivity:'2026-08-18' },
+  { account:'Bannow Insurance',      sector:'Financial Services',    tier:'B', channel:'Partnerships',         stage:'Contacted', value:40000, firstTouch:'2026-07-20', lastActivity:'2026-08-06' },
+  { account:'Ferrous Industrial',    sector:'Technology',            tier:'C', channel:'Direct Outbound',      stage:'Contacted', value:24000, firstTouch:'2026-07-20', lastActivity:'2026-08-04' },
+  { account:'Errigal Audit',         sector:'Professional Services', tier:'C', channel:'Ecosystem & Referral', stage:'Contacted', value:21000, firstTouch:'2026-07-27', lastActivity:'2026-08-07' },
+  { account:'Kilbride Devices',      sector:'Pharmaceutical',        tier:'B', channel:'Direct Outbound',      stage:'Contacted', value:49000, firstTouch:'2026-07-27', lastActivity:'2026-08-10' },
+  { account:'Tolka Digital',         sector:'Technology',            tier:'C', channel:'Inbound',              stage:'Contacted', value:18000, firstTouch:'2026-08-03', lastActivity:'2026-08-08' },
+  { account:'Rosslare Freight',      sector:'Professional Services', tier:'C', channel:'Direct Outbound',      stage:'Contacted', value:20000, firstTouch:'2026-08-03', lastActivity:'2026-08-05' },
+  { account:'Barrow Asset Mgmt',     sector:'Financial Services',    tier:'B', channel:'Direct Outbound',      stage:'Contacted', value:43000, firstTouch:'2026-08-03', lastActivity:'2026-08-11' },
+  { account:'Nore Biopharma',        sector:'Pharmaceutical',        tier:'A', channel:'Partnerships',         stage:'Contacted', value:74000, firstTouch:'2026-08-10', lastActivity:'2026-08-14' },
+  { account:'Slaney Technologies',   sector:'Technology',            tier:'B', channel:'Direct Outbound',      stage:'Contacted', value:39000, firstTouch:'2026-08-10', lastActivity:'2026-08-13' },
+  { account:'Clonmel Chemicals',     sector:'Pharmaceutical',        tier:'B', channel:'Ecosystem & Referral', stage:'Contacted', value:46000, firstTouch:'2026-08-10', lastActivity:'2026-08-12' },
+  { account:'Inchicore Systems',     sector:'Technology',            tier:'C', channel:'Inbound',              stage:'Target',    value:17000, firstTouch:'2026-08-17', lastActivity:'2026-08-17' },
+  { account:'Garvagh Partners',      sector:'Professional Services', tier:'C', channel:'Inbound',              stage:'Target',    value:16000, firstTouch:'2026-08-17', lastActivity:'2026-08-17' },
+  { account:'Moyne Financial',       sector:'Financial Services',    tier:'B', channel:'Direct Outbound',      stage:'Target',    value:42000, firstTouch:'2026-08-17', lastActivity:'2026-08-17' },
+  { account:'Lagan Instruments',     sector:'Technology',            tier:'B', channel:'Partnerships',         stage:'Target',    value:37000, firstTouch:'2026-08-17', lastActivity:'2026-08-17' },
+  { account:'Tramore Diagnostics',   sector:'Pharmaceutical',        tier:'A', channel:'Direct Outbound',      stage:'Target',    value:67000, firstTouch:'2026-08-17', lastActivity:'2026-08-17' },
+  { account:'Boyne Tax Advisory',    sector:'Professional Services', tier:'C', channel:'Ecosystem & Referral', stage:'Target',    value:19000, firstTouch:'2026-08-17', lastActivity:'2026-08-17' },
+  { account:'Cavan Networks',        sector:'Technology',            tier:'C', channel:'Inbound',              stage:'Lost',      lostFrom:'Engaged',   value:15000, firstTouch:'2026-05-11', lastActivity:'2026-07-02' },
+  { account:'Adare Wealth',          sector:'Financial Services',    tier:'C', channel:'Inbound',              stage:'Lost',      lostFrom:'Discovery', value:23000, firstTouch:'2026-05-18', lastActivity:'2026-07-09' },
+  { account:'Fenit Logistics',       sector:'Professional Services', tier:'C', channel:'Ecosystem & Referral', stage:'Lost',      lostFrom:'Engaged',   value:20000, firstTouch:'2026-06-01', lastActivity:'2026-07-21' },
+];
+
+// Weekly outreach activity — week-commencing date, emails sent, replies received
+const WEEKLY = [
+  { week:'2026-06-08', sent: 34, replies: 4 },
+  { week:'2026-06-15', sent: 41, replies: 6 },
+  { week:'2026-06-22', sent: 38, replies: 5 },
+  { week:'2026-06-29', sent: 46, replies: 8 },
+  { week:'2026-07-06', sent: 52, replies: 9 },
+  { week:'2026-07-13', sent: 49, replies: 11 },
+  { week:'2026-07-20', sent: 58, replies: 10 },
+  { week:'2026-07-27', sent: 61, replies: 14 },
+  { week:'2026-08-03', sent: 66, replies: 13 },
+  { week:'2026-08-10', sent: 71, replies: 17 },
+  { week:'2026-08-17', sent: 64, replies: 16 },
+];
+
+/* ============================================================================
+   2. CONFIG
+   ========================================================================== */
+
+const STAGES = ['Target','Contacted','Engaged','Discovery','Proposal','Won'];
+// probability weighting used for the weighted pipeline value
+const WEIGHTS = { Target:0.05, Contacted:0.10, Engaged:0.25, Discovery:0.45, Proposal:0.70, Won:1, Lost:0 };
+// a channel needs this reply rate to be considered performing
+const REPLY_TARGET = 0.18;
+
+/* ============================================================================
+   3. HELPERS
+   ========================================================================== */
+
+const $  = (s) => document.querySelector(s);
+const days = (a, b) => Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000));
+const eur = (n) => '€' + Math.round(n).toLocaleString('en-IE');
+const eurK = (n) => n >= 1e6
+  ? '€' + (Math.round(n / 1e5) / 10).toFixed(2) + 'm'
+  : '€' + (Math.round(n / 100) / 10).toFixed(1) + 'k';
+const pct = (n) => (n * 100).toFixed(0) + '%';
+const uniq = (arr) => [...new Set(arr)].sort();
+// how far an account actually progressed — a lost deal still passed its earlier stages
+const reached = (r) => (r.stage === 'Lost' ? (r.lostFrom || 'Contacted') : r.stage);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const el = (tag, attrs) => {
+  const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+};
+// bar path with the data-end rounded and the baseline end square
+function barPath(x, y, w, h, r) {
+  r = Math.min(r, w, h / 2);
+  if (w <= 0) return '';
+  return `M${x},${y} H${x + w - r} A${r},${r} 0 0 1 ${x + w},${y + r} V${y + h - r} A${r},${r} 0 0 1 ${x + w - r},${y + h} H${x} Z`;
+}
+
+/* ============================================================================
+   4. STATE + FILTERING
+   ========================================================================== */
+
+const state = { channel: 'all', tier: 'all', sector: 'all' };
+const filtered = () => PIPELINE.filter((d) =>
+  (state.channel === 'all' || d.channel === state.channel) &&
+  (state.tier    === 'all' || d.tier    === state.tier) &&
+  (state.sector  === 'all' || d.sector  === state.sector));
+
+/* ============================================================================
+   5. TOOLTIP
+   ========================================================================== */
+
+const tip = $('#tip');
+function showTip(evt, html) {
+  tip.innerHTML = html;
+  tip.style.opacity = '1';
+  const pad = 14, r = tip.getBoundingClientRect();
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + r.width  > window.innerWidth  - 8) x = evt.clientX - r.width  - pad;
+  if (y + r.height > window.innerHeight - 8) y = evt.clientY - r.height - pad;
+  tip.style.left = x + 'px';
+  tip.style.top  = y + 'px';
+}
+const hideTip = () => { tip.style.opacity = '0'; };
+
+/* ============================================================================
+   6. KPI TILES
+   ========================================================================== */
+
+function renderKpis() {
+  const d = filtered();
+  const open = d.filter((r) => r.stage !== 'Won' && r.stage !== 'Lost');
+  const won  = d.filter((r) => r.stage === 'Won');
+  const lost = d.filter((r) => r.stage === 'Lost');
+
+  const weighted = d.reduce((s, r) => s + r.value * (WEIGHTS[r.stage] ?? 0), 0);
+  const decided  = won.length + lost.length;
+  const winRate  = decided ? won.length / decided : 0;
+  const cycle    = won.length
+    ? Math.round(won.reduce((s, r) => s + days(r.firstTouch, r.lastActivity), 0) / won.length)
+    : 0;
+
+  const tiles = [
+    { label: 'Weighted pipeline', value: eurK(weighted), note: `${d.length} accounts tracked` },
+    { label: 'Open opportunities', value: open.length,   note: `${eurK(open.reduce((s, r) => s + r.value, 0))} unweighted` },
+    { label: 'Win rate',           value: pct(winRate),  note: `${won.length} won of ${decided} decided` },
+    { label: 'Avg. sales cycle',   value: cycle + ' days', note: 'first touch to close' },
+  ];
+
+  $('#kpis').innerHTML = tiles.map((t) => `
+    <div class="kpi">
+      <div class="k-label">${esc(t.label)}</div>
+      <div class="k-value">${esc(t.value)}</div>
+      <div class="k-note">${esc(t.note)}</div>
+    </div>`).join('');
+}
+
+/* ============================================================================
+   7. FUNNEL  —  single hue; length carries magnitude
+   ========================================================================== */
+
+function renderFunnel() {
+  const d = filtered();
+  // an account at stage N has passed every stage before it
+  const counts = STAGES.map((st, i) =>
+    d.filter((r) => STAGES.indexOf(reached(r)) >= i).length);
+
+  const svg = $('#funnel');
+  svg.innerHTML = '';
+  const rowH = 46, padT = 8, padB = 8, labelW = 92, valW = 96;
+  const width = Math.max(360, svg.clientWidth || 520);
+  const plotW = width - labelW - valW;
+  const height = padT + padB + STAGES.length * rowH;
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+
+  const max = Math.max(...counts, 1);
+  const barColor = css('--bar'), soft = css('--bar-soft');
+  const t1 = css('--text-primary'), t2 = css('--text-secondary'), t3 = css('--text-muted');
+
+  STAGES.forEach((st, i) => {
+    const y = padT + i * rowH;
+    const bh = 22, by = y + (rowH - bh) / 2;
+    const w = (counts[i] / max) * plotW;
+
+    const lab = el('text', { x: 0, y: by + bh / 2 + 4, fill: t2, 'font-size': 12.5, 'font-weight': 600 });
+    lab.textContent = st;
+    svg.appendChild(lab);
+
+    svg.appendChild(el('path', { d: barPath(labelW, by, plotW, bh, 4), fill: soft, opacity: .5 }));
+
+    const bar = el('path', { d: barPath(labelW, by, Math.max(w, 2), bh, 4), fill: barColor });
+    bar.style.cursor = 'default';
+    const conv = i === 0 ? null : (counts[i - 1] ? counts[i] / counts[i - 1] : 0);
+    bar.addEventListener('mousemove', (e) => showTip(e,
+      `<div class="t-head">${esc(st)}</div>
+       <div class="t-row">${counts[i]} account${counts[i] === 1 ? '' : 's'}</div>` +
+      (conv === null ? '' : `<div class="t-row" style="color:${t3}">${pct(conv)} from ${esc(STAGES[i - 1])}</div>`)));
+    bar.addEventListener('mouseleave', hideTip);
+    svg.appendChild(bar);
+
+    const val = el('text', { x: labelW + plotW + 10, y: by + bh / 2 + 4, fill: t1, 'font-size': 13, 'font-weight': 700 });
+    val.textContent = counts[i];
+    svg.appendChild(val);
+
+    if (conv !== null) {
+      const cv = el('text', { x: labelW + plotW + 42, y: by + bh / 2 + 4, fill: t3, 'font-size': 11.5 });
+      cv.textContent = pct(conv);
+      svg.appendChild(cv);
+    }
+  });
+}
+
+/* ============================================================================
+   8. TREND  —  two validated categorical hues, legend + crosshair
+   ========================================================================== */
+
+function renderTrend() {
+  const svg = $('#trend');
+  svg.innerHTML = '';
+  const width = Math.max(360, svg.clientWidth || 520);
+  const height = 268;
+  const m = { t: 12, r: 14, b: 34, l: 38 };
+  const pw = width - m.l - m.r, ph = height - m.t - m.b;
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+
+  const max = Math.ceil(Math.max(...WEEKLY.map((w) => w.sent)) / 10) * 10;
+  const X = (i) => m.l + (WEEKLY.length === 1 ? pw / 2 : (i / (WEEKLY.length - 1)) * pw);
+  const Y = (v) => m.t + ph - (v / max) * ph;
+
+  const grid = css('--grid'), t2 = css('--text-secondary'), t3 = css('--text-muted');
+  const c1 = css('--series-1'), c2 = css('--series-2'), surf = css('--surface-1');
+
+  // recessive gridlines
+  for (let i = 0; i <= 4; i++) {
+    const v = (max / 4) * i, y = Y(v);
+    svg.appendChild(el('line', { x1: m.l, y1: y, x2: m.l + pw, y2: y, stroke: grid, 'stroke-width': 1 }));
+    const lb = el('text', { x: m.l - 8, y: y + 4, fill: t3, 'font-size': 11, 'text-anchor': 'end' });
+    lb.textContent = v;
+    svg.appendChild(lb);
+  }
+
+  // x labels — every other week to avoid collision
+  WEEKLY.forEach((w, i) => {
+    if (i % 2 !== 0 && i !== WEEKLY.length - 1) return;
+    const dt = new Date(w.week);
+    const anchor = i === 0 ? 'start' : (i === WEEKLY.length - 1 ? 'end' : 'middle');
+    const lb = el('text', { x: X(i), y: height - 12, fill: t3, 'font-size': 11, 'text-anchor': anchor });
+    lb.textContent = dt.toLocaleDateString('en-IE', { day: 'numeric', month: 'short' });
+    svg.appendChild(lb);
+  });
+
+  const line = (key, color) => {
+    const dAttr = WEEKLY.map((w, i) => `${i ? 'L' : 'M'}${X(i)},${Y(w[key])}`).join(' ');
+    svg.appendChild(el('path', { d: dAttr, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+  };
+  line('sent', c1);
+  line('replies', c2);
+
+  // end-point markers with a surface ring
+  [['sent', c1], ['replies', c2]].forEach(([k, c]) => {
+    const i = WEEKLY.length - 1;
+    svg.appendChild(el('circle', { cx: X(i), cy: Y(WEEKLY[i][k]), r: 4.5, fill: c, stroke: surf, 'stroke-width': 2 }));
+  });
+
+  // crosshair + hit areas
+  const cross = el('line', { y1: m.t, y2: m.t + ph, stroke: t3, 'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: 0 });
+  svg.appendChild(cross);
+
+  WEEKLY.forEach((w, i) => {
+    const half = pw / Math.max(1, WEEKLY.length - 1) / 2;
+    const hit = el('rect', { x: X(i) - half, y: m.t, width: half * 2, height: ph, fill: 'transparent' });
+    hit.style.cursor = 'crosshair';
+    hit.addEventListener('mousemove', (e) => {
+      cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); cross.setAttribute('opacity', .55);
+      const dt = new Date(w.week).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
+      showTip(e, `<div class="t-head">Week of ${dt}</div>
+        <div class="t-row"><i class="swatch" style="background:${c1}"></i>Sent <strong>${w.sent}</strong></div>
+        <div class="t-row"><i class="swatch" style="background:${c2}"></i>Replies <strong>${w.replies}</strong> (${pct(w.replies / w.sent)})</div>`);
+    });
+    hit.addEventListener('mouseleave', () => { cross.setAttribute('opacity', 0); hideTip(); });
+    svg.appendChild(hit);
+  });
+}
+
+/* ============================================================================
+   9. CHANNEL SCORECARD  —  the decision layer
+   ========================================================================== */
+
+function renderChannels() {
+  const d = filtered();
+  const names = uniq(PIPELINE.map((r) => r.channel));
+  const idx = (s) => STAGES.indexOf(s);
+
+  const rows = names.map((name) => {
+    const set = d.filter((r) => r.channel === name);
+    const contacted = set.filter((r) => idx(reached(r)) >= 1).length;
+    const engaged   = set.filter((r) => idx(reached(r)) >= 2).length;
+    const qualified = set.filter((r) => idx(reached(r)) >= 3).length;
+    const won       = set.filter((r) => r.stage === 'Won').length;
+    const lost      = set.filter((r) => r.stage === 'Lost').length;
+    const replyRate = contacted ? engaged / contacted : 0;
+    const winRate   = (won + lost) ? won / (won + lost) : 0;
+    const wonSet    = set.filter((r) => r.stage === 'Won');
+    const cycle     = wonSet.length ? Math.round(wonSet.reduce((s, r) => s + days(r.firstTouch, r.lastActivity), 0) / wonSet.length) : null;
+    const value     = set.reduce((s, r) => s + r.value * (WEIGHTS[r.stage] ?? 0), 0);
+    const qualRate = contacted ? qualified / contacted : 0;
+    return { name, contacted, engaged, qualified, won, lost, replyRate, qualRate, winRate, cycle, value, count: set.length };
+  }).filter((r) => r.count > 0);
+
+  const best = Math.max(...rows.filter((r) => r.won > 0).map((r) => r.replyRate), 0);
+
+  // Reply rate alone never earns "Scale" — a channel that engages but never converts
+  // is a messaging or targeting problem, not a channel to pour capacity into.
+  const verdict = (r) => {
+    if (r.contacted < 3) return { cls: '', icon: '○', text: 'Insufficient data', why: 'too few contacted to judge' };
+    const engages  = r.replyRate >= REPLY_TARGET;
+    const converts = r.won > 0;
+    if (engages && converts && r.replyRate >= best - 0.001)
+      return { cls: 'good', icon: '▲', text: 'Scale', why: 'best reply rate and it closes' };
+    if (engages && converts)
+      return { cls: 'good', icon: '●', text: 'Maintain', why: 'engages and closes, not the leader' };
+    if (engages && !converts)
+      return { cls: 'warning', icon: '◆', text: 'Diagnose', why: 'replies but no wins — check targeting and offer' };
+    if (r.replyRate >= REPLY_TARGET * 0.6)
+      return { cls: 'warning', icon: '◆', text: 'Diagnose', why: 'reply rate below target' };
+    return { cls: 'critical', icon: '▼', text: 'Remediate', why: 'reply rate well below target' };
+  };
+
+  const maxVal = Math.max(...rows.map((r) => r.value), 1);
+
+  $('#channels tbody').innerHTML = rows
+    .sort((a, b) => b.replyRate - a.replyRate)
+    .map((r) => {
+      const v = verdict(r);
+      return `<tr>
+        <td><strong>${esc(r.name)}</strong></td>
+        <td class="num">${r.contacted}</td>
+        <td class="num">${r.engaged}</td>
+        <td class="num">${pct(r.replyRate)}</td>
+        <td class="num">${r.qualified}</td>
+        <td class="num">${r.won}</td>
+        <td class="num">${(r.won + r.lost) ? pct(r.winRate) : '&mdash;'}</td>
+        <td class="num">${r.cycle === null ? '&mdash;' : r.cycle + 'd'}</td>
+        <td class="num"><div class="minibar">
+          <span>${eurK(r.value)}</span>
+          <span class="track"><span class="fill" style="width:${(r.value / maxVal * 100).toFixed(1)}%"></span></span>
+        </div></td>
+        <td><span class="pill ${v.cls}" title="${esc(v.why)}"><span aria-hidden="true">${v.icon}</span>${v.text}</span></td>
+      </tr>`;
+    }).join('');
+}
+
+/* ============================================================================
+   10. ACCOUNT TABLE
+   ========================================================================== */
+
+function renderAccounts() {
+  const d = filtered().slice().sort((a, b) => {
+    const o = { Proposal:0, Discovery:1, Engaged:2, Contacted:3, Target:4, Won:5, Lost:6 };
+    return (o[a.stage] - o[b.stage]) || (b.value - a.value);
+  });
+  $('#acct-sub').textContent = `${d.length} account${d.length === 1 ? '' : 's'} matching the current filters, ordered by stage then value.`;
+  $('#accounts tbody').innerHTML = d.map((r) => `
+    <tr>
+      <td><strong>${esc(r.account)}</strong></td>
+      <td>${esc(r.sector)}</td>
+      <td>${esc(r.tier)}</td>
+      <td>${esc(r.channel)}</td>
+      <td class="stage-tag">${esc(r.stage)}</td>
+      <td class="num">${eur(r.value)}</td>
+      <td class="num">${days(r.firstTouch, AS_OF)}</td>
+      <td>${new Date(r.lastActivity).toLocaleDateString('en-IE', { day:'numeric', month:'short', year:'numeric' })}</td>
+    </tr>`).join('');
+}
+
+/* ============================================================================
+   11. WIRE-UP
+   ========================================================================== */
+
+function fillSelect(id, values) {
+  const s = $(id);
+  values.forEach((v) => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    s.appendChild(o);
+  });
+}
+fillSelect('#f-channel', uniq(PIPELINE.map((r) => r.channel)));
+fillSelect('#f-tier',    uniq(PIPELINE.map((r) => r.tier)));
+fillSelect('#f-sector',  uniq(PIPELINE.map((r) => r.sector)));
+
+function renderAll() { renderKpis(); renderFunnel(); renderTrend(); renderChannels(); renderAccounts(); }
+
+$('#f-channel').addEventListener('change', (e) => { state.channel = e.target.value; renderAll(); });
+$('#f-tier')   .addEventListener('change', (e) => { state.tier    = e.target.value; renderAll(); });
+$('#f-sector') .addEventListener('change', (e) => { state.sector  = e.target.value; renderAll(); });
+$('#f-reset')  .addEventListener('click', () => {
+  state.channel = state.tier = state.sector = 'all';
+  $('#f-channel').value = $('#f-tier').value = $('#f-sector').value = 'all';
+  renderAll();
+});
+
+$('#theme').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const isDark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  renderAll();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
+
+let rz;
+addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { renderFunnel(); renderTrend(); }, 120); });
+
+$('#asof').textContent = new Date(AS_OF).toLocaleDateString('en-IE', { day:'numeric', month:'long', year:'numeric' });
+renderAll();
+</script>
+</body>
+</html>
